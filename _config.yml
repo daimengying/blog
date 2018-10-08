@@ -1,16 +1,16 @@
 # Jekyll configuration
 
-name: Xixia
-description: Welcome to Xixia！
+name: 玄冰
+description: I have only one thing in the world, that is learning！
 
 # url is currently only used only for the RSS feed in feed.xml
-url: https://github.com/zxixia/jekyll-xixia
+url: https://github.com/daimengying/daimengying.github.io
 
 # baseurl will often be '', but for a project page on gh-pages, it needs to
 # be the project name.
 # *** IMPORTANT: If your local "jekyll serve" throws errors change this to '' or
 #     run it like so: jekyll serve --baseurl=''
-baseurl: '/jekyll-xixia'
+baseurl: '/daimengying.github.io'
 ## default date_format
 date_format: 
   title: "%B-%-d-%Y"
@@ -18,7 +18,7 @@ date_format:
   categories: "%b-%Y"
   tag: "%b-%Y"
 # Language
-lan: "en" 
+lan: "cn" 
 
 paginate: 10
 
@@ -26,4 +26,6 @@ highlighter: rouge
 markdown: kramdown
 gems: ['jekyll-paginate']
 
-exclude: ['README.md', 'LICENSE', "*.bak"]
+exclude: ['README.md', 'LICENSE', "*.bak",node_modules,"package.json"]
+
+github_username:    mydai

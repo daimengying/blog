@@ -10,7 +10,12 @@ url: https://github.com/daimengying/daimengying.github.io
 # be the project name.
 # *** IMPORTANT: If your local "jekyll serve" throws errors change this to '' or
 #     run it like so: jekyll serve --baseurl=''
-baseurl: '/daimengying.github.io'
+baseurl:  '/daimengying.github.io'
+
+# Build settings
+plugins:
+  - jekyll-feed
+markdown: kramdown
 ## default date_format
 date_format: 
   title: "%B-%-d-%Y"
@@ -23,8 +28,8 @@ lan: "cn"
 paginate: 10
 
 highlighter: rouge
-markdown: kramdown
-gems: ['jekyll-paginate']
+
+#gems: ['jekyll-paginate']
 
 exclude: ['README.md', 'LICENSE', "*.bak",node_modules,"package.json"]
 

@@ -4,7 +4,7 @@ title:  "Gson的使用"
 categories: Java基础
 tags: Java基础
 author: mydai
-description: This is my first blog.
+description: 我的第一篇博客，Gson的基本使用。
 ---
 
 

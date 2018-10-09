@@ -18,10 +18,10 @@ plugins:
 markdown: kramdown
 ## default date_format
 date_format: 
-  title: "%B-%-d-%Y"
-  archive: "%b"
-  categories: "%b-%Y"
-  tag: "%b-%Y"
+  title: "%Y-%m-%d"
+  archive: "%m"
+  categories: "%Y-%m"
+  tag: "%Y-%m"
 # Language
 lan: "cn" 
 
@@ -33,4 +33,4 @@ highlighter: rouge
 
 exclude: ['README.md', 'LICENSE', "*.bak",node_modules,"package.json"]
 
-github_username:    daimengying
+github_username:    mydai

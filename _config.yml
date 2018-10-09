@@ -33,4 +33,4 @@ highlighter: rouge
 
 exclude: ['README.md', 'LICENSE', "*.bak",node_modules,"package.json"]
 
-github_username:    mydai
+github_username:    daimengying

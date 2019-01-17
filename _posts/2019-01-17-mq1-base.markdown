@@ -1,0 +1,88 @@
+---
+layout: post
+title:  "mq技术选型"
+categories: 面试
+tags: Java高阶面试
+author: mydai
+description: Java面试突击集锦（一）：消息队列之技术选型。
+---
+
+
+### 一、Gson的基本用法
+**fromJson()实现反序列化，toJson()实现了序列化**
+
+
+### 二、属性重命名 @SerializedName 注解的使用
+- 在属性名上注解 @SerializedName，使POJO中的属性名转为json的键名  
+- SerializedName注解还有一个属性alternate，接收一个String数组  
+&nbsp; **eg:** `@SerializedName(value = "data", alternate = {"Date", "date"})`
+&nbsp;注：当json中的键名出现data Date date任意一个时均可以得到正确的结果。
+
+
+### 三、Gson中使用泛型
+对于JSON中的Number、boolean、Object、String和Array，可以直接使用  
+```
+Gson gson = new Gson();
+String jsonArray = "[\"Android\",\"Java\",\"PHP\"]";
+String[] strings = gson.fromJson(jsonArray, String[].class);
+```  
+而对于List<String>.class则行不通，所以诞生了 new TypeToken<List<String>>() {}.getType()   
+
+例如：
+```
+Gson gson = new Gson();
+String jsonArray = "[\"Android\",\"Java\",\"PHP\"]";
+List<String> stringList = gson.fromJson(jsonArray, new TypeToken<List<String>>() {}.getType());
+```     
+
+### 四、一个完整的例子：    
+
+Result<T>适合任意{"code":"0","message":"success","data":{}}和{"code":"0","message":"success","data":[]}的格式   
+
+ ```
+public class TestC {
+    public static void main(String[] args) {
+        String jsonString="{\"code\":\"0\",\"message\":\"success\",\"data\":{\"data\": \"hello java\"}}";
+        Gson gson = new Gson();
+        Result<DateBean> resutlDate=gson.fromJson(jsonString,new TypeToken<Result<DateBean>>(){}.getType());
+        System.out.println(resutlDate.getData().getDate());
+    }
+}
+
+public class DateBean {
+    @SerializedName("data")
+    public String date;
+    public String getDate() {
+        return date;
+    }
+    public void setDate(String date) {
+        this.date = date;
+    }
+}
+
+public class Result<T> {
+    public int code;
+    public String message;
+    public T data;
+
+    public String getMessage() {
+        return message;
+    }
+    public void setMessage(String message) {
+        this.message = message;
+    }
+    public T getData() {
+        return data;
+    }
+    public void setData(T data) {
+        this.data = data;
+    }
+    public int getCode() {
+        return code;
+    }
+    public void setCode(int code) {
+        this.code = code;
+    }
+}
+
+```  

@@ -8,81 +8,28 @@ description: Java面试突击集锦（一）：消息队列之技术选型。
 ---
 
 
-### 一、Gson的基本用法
-**fromJson()实现反序列化，toJson()实现了序列化**
+### 一、为什么使用消息队列
+**核心的有3个：解耦、异步、削峰**
+- 解耦:一个系统或者一个模块，调用了多个系统或者模块，互相之间的调用很复杂，维护起来很麻烦。如果这个调用不需要直接同步调用接口的，就可以考虑用MQ给他异步化解耦。
+- 异步：A系统接收一个请求，需要在自己本地写库，还需要在BCD三个系统写库，自己本地写库要3ms，BCD三个系统分别写库要300ms、450ms、200ms。最终请求总延时是3 + 300 + 450 + 200 = 953ms，接近1s，如果用mq，只需要写本地库+写mq。
+- 削峰：当系统在某一点有大量请求涌入，峰值过大，远远超过系统承受力，系统就会hang死
 
+### 二、消息队列优缺点
+- 系统可用性降低：系统引入的外部依赖越多，越容易挂掉。一旦MQ挂了，其他系统就不能消费数据，整个系统就崩溃了。
+- 系统复杂性提高：加个MQ进来，怎么保证消息没有重复消费？怎么处理消息丢失的情况？怎么保证消息传递的顺序性？等等...一堆问题
+- 一致性问题：A系统处理完了直接返回成功了，人都以为你这个请求就成功了；但是问题是，要是BCD三个系统那里，BD两个系统写库成功了，结果C系统写库失败了，咋整？这就出现数据不一致问题。
+### 三 、kafka、activemq、rabbitmq、rocketmq比较
 
-### 二、属性重命名 @SerializedName 注解的使用
-- 在属性名上注解 @SerializedName，使POJO中的属性名转为json的键名  
-- SerializedName注解还有一个属性alternate，接收一个String数组  
-&nbsp; **eg:** `@SerializedName(value = "data", alternate = {"Date", "date"})`
-&nbsp;注：当json中的键名出现data Date date任意一个时均可以得到正确的结果。
+特性 | ActiveMQ | RabbitMQ | RocketMQ | Kafka
+---|---|---|---|---
+单机吞吐量 | 万级，吞吐量比RocketMQ和Kafka要低了一个数量级| 万级，吞吐量比RocketMQ和Kafka要低了一个数量级 | 10万级，RocketMQ也是可以支撑高吞吐的一种MQ|10万级别，这是kafka最大的优点，就是吞吐量高。<br/>一般配合大数据类的系统来进行实时数据计算、日志采集等场景
+topic数量对吞吐量的影响 | | |topic可以达到几百，几千个的级别，吞吐量会有较小幅度的下降。<br/>这是RocketMQ的一大优势，在同等机器下，可以支撑大量的topic|topic从几十个到几百个的时候，吞吐量会大幅度下降。<br/>所以在同等机器下，kafka尽量保证topic数量不要过多。如果要支撑大规模topic，需要增加更多的机器资源
+时效性 | ms级| 微秒级，这是rabbitmq的一大特点，延迟是最低的| ms级 |延迟在ms级以内
+可用性 | 高，基于主从架构实现高可用性| 高，基于主从架构实现高可用性| 高，基于主从架构实现高可用性 |非常高，kafka是分布式的，一个数据多个副本，少数机器宕机，不会丢失数据，不会导致不可用
+消息可靠性 |有较低的概率丢失数据| |经过参数优化配置，可以做到0丢失 |经过参数优化配置，消息可以做到0丢失
+功能支持 | MQ领域的功能极其完备| 基于erlang开发，所以并发能力很强，性能极其好，延时很低| MQ功能较为完善，还是分布式的，扩展性好|功能较为简单，主要支持简单的MQ功能，在大数据领域的实时计算以及日志采集被大规模使用，是事实上的标准
+优劣势总结 |非常成熟，功能强大，在业内大量的公司以及项目中都有应用<br/>偶尔会有较低概率丢失消息<br/>而且现在社区以及国内应用都越来越少，官方社区现在对ActiveMQ 5.x维护越来越少，几个月才发布一个版本<br/>而且确实主要是基于解耦和异步来用的，较少在大规模吞吐的场景中使用|erlang语言开发，性能极其好，延时很低；<br/>吞吐量到万级，MQ功能比较完备<br/>而且开源提供的管理界面非常棒，用起来很好用<br/>社区相对比较活跃，几乎每个月都发布几个版本分<br/>在国内一些互联网公司近几年用rabbitmq也比较多一些<br/>但是问题也是显而易见的，RabbitMQ确实吞吐量会低一些，这是因为他做的实现机制比较重。<br/>而且erlang开发,很难去看懂源码，对它的掌控很弱，基本只能依赖于开源社区的快速维护和修复bug。<br/>而且rabbitmq集群动态扩展会很麻烦。|接口简单易用，而且毕竟在阿里大规模应用过，有阿里品牌保障<br/>日处理消息上百亿之多，可以做到大规模吞吐，性能也非常好，分布式扩展也很方便，社区维护还可以，可靠性和可用性都是ok的，还可以支撑大规模的topic数量，支持复杂MQ业务场景<br/>而且一个很大的优势在于，阿里出品都是java系的，可以自己阅读源码，定制自己公司的MQ，可以掌控<br/>社区活跃度相对较为一般，文档相对来说简单一些，然后接口这块不是按照标准JMS规范走的有些系统要迁移需要修改大量代码<br/>还有就是阿里出台的技术，你得做好这个技术万一被抛弃，社区黄掉的风险，那如果你们公司有技术实力我觉得用RocketMQ挺好的|仅仅提供较少的核心功能，但是提供超高的吞吐量，ms级的延迟，极高的可用性以及可靠性，而且分布式可以任意扩展<br/>同时kafka最好是支撑较少的topic数量即可，保证其超高吞吐量<br/>而且kafka唯一的一点劣势是有可能消息重复消费，那么对数据准确性会造成极其轻微的影响，在大数据领域中以及日志采集中，这点轻微影响可以忽略<br/>这个特性天然适合大数据实时计算以及日志收集
 
-
-### 三、Gson中使用泛型
-对于JSON中的Number、boolean、Object、String和Array，可以直接使用  
-```
-Gson gson = new Gson();
-String jsonArray = "[\"Android\",\"Java\",\"PHP\"]";
-String[] strings = gson.fromJson(jsonArray, String[].class);
-```  
-而对于List<String>.class则行不通，所以诞生了 new TypeToken<List<String>>() {}.getType()   
-
-例如：
-```
-Gson gson = new Gson();
-String jsonArray = "[\"Android\",\"Java\",\"PHP\"]";
-List<String> stringList = gson.fromJson(jsonArray, new TypeToken<List<String>>() {}.getType());
-```     
-
-### 四、一个完整的例子：    
-
-Result<T>适合任意{"code":"0","message":"success","data":{}}和{"code":"0","message":"success","data":[]}的格式   
-
- ```
-public class TestC {
-    public static void main(String[] args) {
-        String jsonString="{\"code\":\"0\",\"message\":\"success\",\"data\":{\"data\": \"hello java\"}}";
-        Gson gson = new Gson();
-        Result<DateBean> resutlDate=gson.fromJson(jsonString,new TypeToken<Result<DateBean>>(){}.getType());
-        System.out.println(resutlDate.getData().getDate());
-    }
-}
-
-public class DateBean {
-    @SerializedName("data")
-    public String date;
-    public String getDate() {
-        return date;
-    }
-    public void setDate(String date) {
-        this.date = date;
-    }
-}
-
-public class Result<T> {
-    public int code;
-    public String message;
-    public T data;
-
-    public String getMessage() {
-        return message;
-    }
-    public void setMessage(String message) {
-        this.message = message;
-    }
-    public T getData() {
-        return data;
-    }
-    public void setData(T data) {
-        this.data = data;
-    }
-    public int getCode() {
-        return code;
-    }
-    public void setCode(int code) {
-        this.code = code;
-    }
-}
-
-```  
+**总结：**<br/>
+中小型公司，技术实力较为一般，技术挑战不是特别高，用RabbitMQ是不错的选择；大型公司，基础架构研发实力较强，用RocketMQ是很好的选择<br/>
+如果是大数据领域的实时计算、日志采集等场景，用Kafka是业内标准

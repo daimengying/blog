@@ -4,7 +4,7 @@ title:  "mq技术选型"
 categories: 消息队列
 tags: Java高阶面试
 author: mydai
-description: Java面试突击集锦（一）：消息队列之技术选型。
+description: 消息队列原理剖析（一）：消息队列之技术选型。
 ---
 
 

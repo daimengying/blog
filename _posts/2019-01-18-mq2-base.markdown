@@ -4,7 +4,7 @@ title:  "mq如何保证高可用，解决重复消费、数据丢失问题和顺
 categories: 消息队列
 tags: Java高阶面试
 author: mydai
-description: Java面试突击集锦（二）：消息队列之复杂性问题解决。
+description: 消息队列原理剖析（二）：消息队列之复杂性问题解决。
 ---
 
 

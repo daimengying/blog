@@ -9,7 +9,10 @@
     <script src="{{ site.baseurl }}/assets/js/jquery.min.js"></script>
     <script src="{{ site.baseurl }}/assets/js/bootstrap.min.js"></script>
     <script >
-        $("table").addClass("table table-bordered table-striped table-condensed");
+        $(function () { 
+            $("table").addClass("table table-bordered table-striped table-condensed");
+        });
+        
     </script>
     <link href="{{ site.baseurl }}/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css">
     <link href="{{ site.baseurl }}/assets/css/font-awesome.min.css" rel="stylesheet" type="text/css">

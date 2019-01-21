@@ -1,0 +1,39 @@
+---
+layout: post
+title:  "redis数据类型"
+categories: redis
+tags: Java高阶面试
+author: mydai
+description: redis原理剖析（一）：redis数据类型以及使用场景
+---
+
+**string**<br/>
+普通的set和get，做简单的kv缓存<br/>
+
+**hash**<br/>
+类似map的一种结构，这个一般就是可以将结构化的数据，比如一个对象（前提是这个对象没嵌套其他的对象）给缓存在redis里，然后每次读写缓存的时候，可以就操作hash里的某个字段。<br/>
+```
+key=150
+value={
+  “id”: 150,
+  “name”: “zhangsan”,   
+  “age”: 20
+}
+```
+**list**<br/>
+有序列表。<br/>
+比如可以通过list存储一些列表型的数据结构，类似粉丝列表、文章的评论列表之类。可以通过lrange命令，从某个元素开始读取N个元素，可以基于list实现分页查询，可以做类似微博那种下拉分页。<br/><br/>
+**set**<br/>
+无序集合，自动去重<br/>
+可以基于set做交集、并集、差集的操作<br/><br/>
+**sorted set**<br/>
+去重+排序，写进去的时候给一个分数，自动根据分数排序。<br/>
+比如根据时间对数据排序，那么写入时就用时间作为分数<br/>
+
+```
+zadd board 85 zhangsan
+zadd board 72 wangwu
+
+zrevrange board 0 99 //获取排名前100的用户
+zrank board zhangsan  //看到zhangsan在排行榜里的排名
+```

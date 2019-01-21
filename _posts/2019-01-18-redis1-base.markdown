@@ -25,7 +25,7 @@ redis基于reactor模式开发了网络事件处理器，这个处理器叫做�
 
 - **客户端与redis通信的一次流程**<br/>
 <html>
-<img src="{{ site.baseurl }}/assets/images/redis单线程模型.png"  />
+	<img src="{{ site.baseurl }}/assets/images/post_imgs/redis单线程模型.png"  />
 </html>
 
 在redis启动初始化的时候，redis会将连接应答处理器跟AE_READABLE事件关联起来，接着如果一个客户端跟redis发起连接，此时会产生一个AE_READABLE事件，然后由连接应答处理器来处理跟客户端建立连接，创建客户端对应的socket，同时将这个socket的AE_READABLE事件跟命令请求处理器关联起来。<br/><br/>

@@ -1,10 +1,10 @@
 ---
 layout: post
-title:  "mq如何保证高可用，解决重复消费、数据丢失问题和顺序性问题"
+title:  "redis单线程模型介绍"
 categories: redis
 tags: Java高阶面试
 author: mydai
-description: redis原理剖析（一）：redis入门和单线程模型
+description: redis原理剖析（一）：redis单线程模型
 ---
 
 

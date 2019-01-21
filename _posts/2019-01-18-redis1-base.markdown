@@ -1,0 +1,41 @@
+---
+layout: post
+title:  "mq如何保证高可用，解决重复消费、数据丢失问题和顺序性问题"
+categories: redis
+tags: Java高阶面试
+author: mydai
+description: redis原理剖析（一）：redis入门和单线程模型
+---
+
+
+### 一、redis和memcached区别
+1. Redis支持服务器端的数据操作：Redis相比Memcached来说，拥有更多的数据结构和并支持更丰富的数据操作，通常在Memcached里，你需要将数据拿到客户端来进行类似的修改再set回去。这大大增加了网络IO的次数和数据体积。在Redis中，这些复杂的操作通常和一般的GET/SET一样高效。<br/>
+2. 集群模式：memcached没有原生的集群模式，需要依靠客户端来实现往集群中分片写入数据；但是redis支持redis cluster集群模式，比memcached更好<br/>
+
+### 二、redis的线程模型
+- **文件事件处理器**<br/>
+redis基于reactor模式开发了网络事件处理器，这个处理器叫做文件事件处理器，file event handler。这个文件事件处理器，是单线程的，redis才叫做单线程的模型，采用IO多路复用机制同时监听多个socket，根据socket上的事件来选择对应的事件处理器来处理这个事件，又可以跟内部其他单线程的模块进行对接，保证了redis内部的线程模型的简单性。<br/><br/>
+文件事件处理器的结构包含4个部分：多个socket，IO多路复用程序，文件事件分派器，事件处理器（命令请求处理器、命令回复处理器、连接应答处理器，等等）<br/><br/>
+多个socket可能并发的产生不同的操作，每个操作对应不同的文件事件，但是IO多路复用程序会监听多个socket，但是会将socket放入一个队列中排队，每次从队列中取出一个socket给事件分派器，事件分派器把socket给对应的事件处理器。然后一个socket的事件处理完之后，IO多路复用程序才会将队列中的下一个socket给事件分派器。文件事件分派器会根据每个socket当前产生的事件，来选择对应的事件处理器来处理。
+
+- **文件事件处理器**<br/>
+如果是客户端要连接redis，那么会为socket关联连接应答处理器<br/>
+如果是客户端要写数据到redis，那么会为socket关联命令请求处理器<br/>
+如果是客户端要从redis读数据，那么会为socket关联命令回复处理器<br/>
+
+- **客户端与redis通信的一次流程**<br/>
+<html>
+<img src="{{ site.baseurl }}/assets/images/redis单线程模型.png"  />
+</html>
+
+在redis启动初始化的时候，redis会将连接应答处理器跟AE_READABLE事件关联起来，接着如果一个客户端跟redis发起连接，此时会产生一个AE_READABLE事件，然后由连接应答处理器来处理跟客户端建立连接，创建客户端对应的socket，同时将这个socket的AE_READABLE事件跟命令请求处理器关联起来。<br/><br/>
+当客户端向redis发起请求的时候（不管是读请求还是写请求，都一样），首先就会在socket产生一个AE_READABLE事件，然后由对应的命令请求处理器来处理。这个命令请求处理器就会从socket中读取请求相关数据，然后进行执行和处理。<br/><br/>
+接着redis这边准备好了给客户端的响应数据之后，就会将socket的AE_WRITABLE事件跟命令回复处理器关联起来，当客户端这边准备好读取响应数据时，就会在socket上产生一个AE_WRITABLE事件，会由对应的命令回复处理器来处理，就是将准备好的响应数据写入socket，供客户端来读取。<br/><br/>
+命令回复处理器写完之后，就会删除这个socket的AE_WRITABLE事件和命令回复处理器的关联关系。
+
+
+
+### 三、redis是单线程为什么可以支撑高并发
+1. 纯内存操作<br/>
+2. 核心是基于非阻塞的IO多路复用机制<br/>
+3. 单线程反而避免了多线程的频繁上下文切换问题<br/>

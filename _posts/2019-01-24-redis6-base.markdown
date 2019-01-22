@@ -1,0 +1,20 @@
+---
+layout: post
+title:  "redis雪崩和穿透"
+categories: redis
+tags: Java高阶面试
+author: mydai
+description: redis原理剖析（六）：redis雪崩和穿透解决方案
+---
+
+### 一、雪崩
+某一时刻并发量过大，redis宕机，所有请求都进入数据库，数据库直接崩溃
+
+**解决方案：**
+事前：redis高可用，主从+哨兵，redis cluster，避免全盘崩溃<br/>
+事中：本地ehcache缓存 + hystrix限流&降级，避免MySQL被打死<br/>
+事后：redis持久化，快速恢复缓存数据<br/>
+
+
+### 二、穿透
+恶意发起大量请求，数据库查查不到，缓存一定是空，所以每次都会请求到数据库，导致库崩溃

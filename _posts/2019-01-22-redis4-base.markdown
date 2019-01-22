@@ -1,0 +1,96 @@
+---
+layout: post
+title:  "redis高并发和高可用"
+categories: redis
+tags: Java高阶面试
+author: mydai
+description: redis原理剖析（四）：高并发和高可用，redis的主从复制原理以及哨兵原理的介绍
+---
+
+### 一、高并发
+- **redis主从架构 -> 读写分离架构 -> 可支持水平扩展的读高并发架构** <br/><br/>
+一主多从，一般来说，很多项目其实就足够了，单主用来写入数据，单机几万QPS，多从用来查询数据，多个从实例可以提供每秒10万的QPS。<br/><br/>
+redis高并发的同时，还需要容纳大量的数据。一主多从，每个实例都容纳了完整的数据，比如redis主就10G的内存量，其实最多只能容纳10g的数据量。如果要容纳的数据量很大，达到了几十g，甚至几百g，或者是几t，那就需要redis集群，而且用redis集群之后，可以提供可能每秒几十万的读写并发。
+
+- **redis replication** <br/>
+1. redis采用异步方式复制数据到slave节点，不过redis 2.8开始，slave node会周期性地确认自己每次复制的数据量<br/>
+2. 一个master node是可以配置多个slave node的<br/>
+3. slave node也可以连接其他的slave node<br/>
+4. slave node做复制的时候，是不会block master node的正常工作的<br/>
+5. slave node在做复制的时候，也不会block对自己的查询操作，它会用旧的数据集来提供服务; 但是复制完成的时候，需要删除旧数据集，加载新数据集，这个时候就会暂停对外服务了<br/>
+6. slave node主要用来进行横向扩容，做读写分离，扩容的slave
+node可以提高读的吞吐量<br/>
+
+- **主从复制原理**<br/>
+当启动一个slave node的时候，它会发送一个PSYNC命令给master node。如果这是slave node重新连接master node，那么master node仅仅会复制给slave部分缺少的数据; 否则如果是slave node第一次连接master node，那么会触发一次full resynchronization。开始full resynchronization的时候，master会启动一个后台线程，开始生成一份RDB快照文件，同时还会将从客户端收到的所有写命令缓存在内存中。RDB文件生成完毕之后，master会将这个RDB发送给slave，slave会先写入本地磁盘，然后再从本地磁盘加载到内存中。然后master会将内存中缓存的写命令发送给slave，slave也会同步这些数据。
+slave node如果跟master node有网络故障，断开了连接，会自动重连。master如果发现有多个slave node都来重新连接，仅仅会启动一个rdb save操作，用一份数据服务所有slave node。<br/>
+如果主从复制过程中，网络连接断掉了，那么可以接着上次复制的地方，继续复制下去，而不是从头开始复制一份master node会在内存中常见一个backlog，master和slave都会保存一个replica offset还有一个master id，offset就是保存在backlog中的。如果master和slave网络连接断掉了，slave会让master从上次的replica offset开始继续复制,但是如果没有找到对应的offset，那么就会执行一次resynchronization
+
+
+<html>
+<img src="{{ site.baseurl}}/assets/images/post_imgs/redis主从复制的原理.png"  />
+</html>
+
+
+- **无磁盘化复制**<br/>
+master在内存中直接创建rdb，然后发送给slave，不会在自己本地落地磁盘了
+repl-diskless-sync
+repl-diskless-sync-delay，等待一定时长再开始复制，因为要等更多slave重新连接过来
+
+
+### 二、高可用
+哨兵。任何一个实例宕机，自动会进行主备切换。
+
+### 三、哨兵
+##### 功能：
+1. 集群监控，负责监控redis master和slave进程是否正常工作
+2. 消息通知，如果某个redis实例有故障，那么哨兵负责发送消息作为报警通知给管理员
+3. 故障转移，如果master node挂掉了，会自动转移到slave node上
+4. 配置中心，如果故障转移发生了，通知client客户端新的master地址
+
+##### 哨兵是分布式的(>=3个实例)，作为一个哨兵集群去运行，互相协同工作
+故障转移时，判断一个master node是宕机了，需要大部分的哨兵都同意才行，涉及到了分布式选举的问题 <br/>
+
+##### sdown和odown转换机制
+sdown是主观宕机，就一个哨兵如果自己觉得一个master宕机了，那么就是主观宕机<br/>
+判断条件：如果一个哨兵ping一个master，超过了is-master-down-after-milliseconds指定的毫秒数之后，就主观认为master宕机<br/><br/>
+odown是客观宕机，如果quorum数量的哨兵都觉得一个master宕机了，那么就是客观宕机<br/>
+sdown到odown转换的条件：
+如果一个哨兵在指定时间内，收到了quorum指定数量的其他哨兵也认为那个master是sdown了，那么就认为是odown了
+
+##### 哨兵集群的自动发现机制
+哨兵互相之间的发现，是通过redis的pub/sub系统实现的，每个哨兵都会往__sentinel__:hello这个channel里发送一个消息，这时候所有其他哨兵都可以消费到这个消息，并感知到其他的哨兵的存在。<br/>
+每隔两秒钟，每个哨兵都会往自己监控的某个master+slaves对应的__sentinel__:hello channel里发送一个消息，内容是自己的host、ip和runid还有对这个master的监控配置；每个哨兵也会去监听自己监控的每个master+slaves对应的__sentinel__:hello channel，然后去感知到同样在监听这个master+slaves的其他哨兵的存在；每个哨兵还会跟其他哨兵交换对master的监控配置，互相进行监控配置的同步
+
+##### slave->master选举算法
+如果一个master被认为odown了，而且majority哨兵都允许了主备切换，那么某个哨兵就会执行主备切换操作，此时首先要选举一个slave来
+
+会考虑slave的一些信息
+- 跟master断开连接的时长
+- slave优先级
+- 复制offset
+- run id
+
+如果一个slave跟master断开连接已经超过了down-after-milliseconds的10倍，外加master宕机的时长，那么slave就被认为不适合选举为master<br/>
+(down-after-milliseconds * 10) + milliseconds_since_master_is_in_SDOWN_state 
+<br/><br/>
+接下来会对slave进行排序<br/>
+（1）按照slave优先级进行排序，slave priority越低，优先级就越高<br/>
+（2）如果slave priority相同，那么看replica offset，哪个slave复制了越多的数据，offset越靠后<br/>
+（3）如果上面两个条件都相同，那么选择一个run id比较小的那个slave<br/>
+
+
+
+### 四、主备切换数据丢失
+1. **异步复制导致的数据丢失：** <br/>
+master -> slave的复制是异步的，所以可能有部分数据还没复制到slave，master就宕机了，此时这些部分数据就丢失了
+2. **脑裂:** <br/>
+某个master所在机器突然脱离了正常的网络，跟其他slave机器不能连接，但是实际上master还运行着。此时哨兵可能就会认为master宕机了，然后开启选举，将其他slave切换成了master这个时候，集群里就会有两个master，也就是所谓的脑裂。<br/>
+此时虽然某个slave被切换成了master，但是可能client还没来得及切换到新的master，还继续写向旧master的数据可能也丢失了，因此旧master再次恢复的时候，会被作为一个slave挂到新的master上去，自己的数据会清空，重新从新的master复制数据<br/>
+**解决方法：**<br/>
+**min-slaves-to-write 1**  <br/>
+**min-slaves-max-lag 10**     //减少异步复制的数据丢失<br/> 
+要求至少有1个slave，数据复制和同步的延迟不能超过10秒 。如果说一旦所有的slave，数据复制和同步的延迟都超过了10秒钟，那么这个时候，master就不会再接收任何请求<br/>
+
+
+

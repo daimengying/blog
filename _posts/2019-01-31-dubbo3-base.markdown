@@ -1,0 +1,63 @@
+---
+layout: post
+title:  "dubbo服务治理、服务降级、失败重试以及超时重试"
+categories: dubbo
+tags: Java高阶面试
+author: mydai
+description: (三)dubbo服务治理、服务降级、失败重试以及超时重试
+---
+
+### 服务治理
+##### 调用链路自动生成
+
+```
+<dubbo:application name="dubbo-provider" />
+    <dubbo:registry address="zookeeper://127.0.0.1:2181" />
+    <dubbo:protocol name="dubbo" port="20880" />
+    <dubbo:service interface="com.zhss.service.HelloService" ref="helloServiceImpl" timeout="10000" />
+    <bean id="helloServiceImpl" class="com.zhss.service.HelloServiceImpl" />
+
+</beans>
+```
+### 服务降级
+
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans        http://www.springframework.org/schema/beans/spring-beans.xsd        http://code.alibabatech.com/schema/dubbo        http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+
+    <dubbo:application name="dubbo-consumer"  />
+
+    <dubbo:registry address="zookeeper://127.0.0.1:2181" />
+
+    <dubbo:reference id="fooService" interface="com.test.service.FooService"  timeout="10000" check="false" mock="return null">
+    </dubbo:reference>
+
+</beans>
+```
+现在就是mock，如果调用失败统一返回null
+
+但是可以将mock修改为true，然后在跟接口同一个路径下实现一个Mock类，命名规则是接口名称加Mock后缀。然后在Mock类里实现自己的降级逻辑。
+
+
+```
+public class HelloServiceMock implements HelloService {
+
+    public void sayHello() {
+    // 降级逻辑
+    }
+
+}
+```
+
+
+### 失败重试和超时重试
+consumer调用provider要是失败了，比如抛异常了，此时应该是可以重试的，或者调用超时了也可以重试
+
+```
+<dubbo:reference id="xxxx" interface="xx" check="true" async="false" retries="3" timeout="2000"/>
+```
+

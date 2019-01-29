@@ -1,0 +1,51 @@
+---
+layout: post
+title:  "dubbo负载均衡、集群容错和集群容错"
+categories: dubbo
+tags: Java高阶面试
+author: mydai
+description: （二）dubbo负载均衡策略，集群容错策略和动态代理策略
+---
+
+### dubbo负载均衡策略
+##### random loadbalance
+默认情况下，dubbo是random load balance随机调用实现负载均衡，可以对provider不同实例设置不同的权重，会按照权重来负载均衡，权重越大分配流量越高，一般就用这个默认的就可以了。
+
+##### roundrobin loadbalance
+均匀地将流量打到各个机器上去，但是如果各个机器的性能不一样，容易导致性能差的机器负载过高。所以此时需要调整权重，让性能差的机器承载权重小一些，流量少一些
+
+##### leastactive loadbalance
+自动感知，如果某个机器性能越差，那么接收的请求越少，越不活跃，此时就会给不活跃的性能差的机器更少的请求
+
+##### consistanthash loadbalance
+一致性Hash算法，相同参数的请求一定分发到一个provider上去，provider挂掉的时候，会基于虚拟节点均匀分配剩余的流量，抖动不会太大。如果你需要的不是随机负载均衡，是要一类请求都到一个节点，那就走这个一致性hash策略。
+
+### dubbo集群容错策略
+##### failover cluster模式
+失败自动切换，自动重试其他机器，默认就是这个，常见于读操作
+
+##### failfast cluster模式
+一次调用失败就立即失败，常见于写操作
+
+##### failsafe cluster模式
+出现异常时忽略掉，常用于不重要的接口调用，比如记录日志
+
+##### failback cluster模式
+失败了后台自动记录请求，然后定时重发，比较适合于写消息队列这种
+
+##### forking cluster
+并行调用多个provider，只要一个成功就立即返回
+
+##### broadcast cluster
+逐个调用所有的provider
+
+
+### dubbo动态代理策略
+默认使用javassist动态字节码生成，创建代理类
+
+但是可以通过spi扩展机制配置自己的动态代理策略
+
+
+###### spi（service provider interface）
+比如你有个接口，现在这个接口有3个实现类，那么在系统运行的时候对这个接口到底选择哪个实现类呢？这就需要spi了，需要根据指定的配置或者是默认的配置，去找到对应的实现类加载进来，然后用这个实现类的实例对象。<br/>
+其实就是Protocol接口，@SPI(“dubbo”)说的是，通过SPI机制来提供实现类，实现类是通过dubbo作为默认key去配置文件里找到的，配置文件名称与接口全限定名一样的，通过dubbo作为key可以找到默认的实现了就是com.alibaba.dubbo.rpc.protocol.dubbo.DubboProtocol。

@@ -2,7 +2,7 @@
 layout: post
 title:  "nginx动静分离"
 categories: Nginx
-tags: Nginx
+tags: nginx
 author: mydai
 description: nginx配置静态资源与动态访问分离
 ---
